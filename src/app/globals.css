@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -138,6 +136,15 @@
   --color-miri-rose: #fda4af;
   --color-miri-bg: #f5f3ff;
   --color-miri-dark: #1e1b4b;
+}
+
+/* BlobCharacter float 애니메이션 */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
 
 /* prose (react-markdown) 기본 스타일 */

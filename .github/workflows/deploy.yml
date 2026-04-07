@@ -1,0 +1,79 @@
+name: Deploy to Cloud Run
+
+# main 브랜치에 push되면 자동 배포
+# GitHub Actions 탭에서 수동 실행도 가능
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: study-chatbot-ai-492606
+  REGION: asia-northeast3
+  SERVICE: study-chatbot-ai
+  IMAGE: asia-northeast3-docker.pkg.dev/study-chatbot-ai-492606/study-chatbot-ai/app
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    # WIF(Workload Identity Federation) 사용을 위해 필요한 권한
+    permissions:
+      contents: read
+      id-token: write   # GCP WIF 토큰 발급에 필요
+
+    steps:
+      # 1. 소스 체크아웃
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # 2. GCP 인증 (서비스 계정 키 없이 WIF로 인증)
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/437952549031/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: github-actions-deploy@study-chatbot-ai-492606.iam.gserviceaccount.com
+
+      # 3. gcloud CLI 설정
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      # 4. Docker 인증 (Artifact Registry)
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # 5. Docker 이미지 빌드 & 푸시
+      - name: Build and push image
+        run: |
+          docker build \
+            --tag ${{ env.IMAGE }}:${{ github.sha }} \
+            --tag ${{ env.IMAGE }}:latest \
+            .
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
+
+      # 6. Cloud Run 배포
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image ${{ env.IMAGE }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 2 \
+            --memory 512Mi \
+            --set-secrets GEMINI_API_KEY=GEMINI_API_KEY:latest \
+            --project ${{ env.PROJECT_ID }}
+
+      # 7. 배포된 서비스 URL 출력
+      - name: Print service URL
+        run: |
+          gcloud run services describe ${{ env.SERVICE }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --format 'value(status.url)'

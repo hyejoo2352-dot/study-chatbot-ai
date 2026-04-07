@@ -1,53 +1,62 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
-import { submitChat, type ChatActionState } from "@/app/actions";
+// ============================================================
+// components/chat/InputBar.tsx — 메시지 입력창 컴포넌트
+//
+// 이 파일이 하는 일:
+//   - 텍스트 입력 및 전송 처리
+//   - Enter = 전송, Shift+Enter = 줄바꿈
+//   - 빈 메시지 차단, 전송 중 중복 클릭 방지
+//   - 전송 중 버튼 비활성화 및 로딩 표시
+// ============================================================
+
+import { useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-const initialState: ChatActionState = {};
-
 interface InputBarProps {
-  sessionId: string;
-  isStreaming: boolean;
-  onStream: (sessionId: string, message: string) => void;
+  isLoading: boolean;
+  onSend: (message: string) => void;
 }
 
-export function InputBar({ sessionId, isStreaming, onStream }: InputBarProps) {
-  const [state, formAction, pending] = useActionState(submitChat, initialState);
+export function InputBar({ isLoading, onSend }: InputBarProps) {
+  const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
 
-  // Server Action 검증 통과 시 → 부모의 SSE fetch 실행
-  useEffect(() => {
-    if (state.sessionId && state.message && !state.error) {
-      onStream(state.sessionId, state.message);
-      if (textareaRef.current) textareaRef.current.value = "";
+  const disabled = isLoading || !value.trim();
+
+  const handleSubmit = () => {
+    const trimmed = value.trim();
+    // 빈 메시지 차단
+    if (!trimmed || isLoading) return;
+
+    onSend(trimmed);
+    setValue("");
+
+    // 전송 후 textarea 높이 초기화
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
     }
-  }, [state]);
-
-  const disabled = pending || isStreaming;
+  };
 
   return (
-    <form ref={formRef} action={formAction} className="flex items-end gap-2 p-4 border-t border-gray-200 bg-white">
-      {/* sessionId를 hidden input으로 전달 */}
-      <input type="hidden" name="sessionId" value={sessionId} />
-
+    <div className="flex items-end gap-2 p-4 border-t border-gray-200 bg-white">
       <Textarea
         ref={textareaRef}
-        name="message"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
         placeholder="메시지를 입력하세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
         rows={1}
-        disabled={disabled}
+        disabled={isLoading}
         className="flex-1 resize-none min-h-[44px] max-h-[200px] overflow-y-auto"
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            if (!disabled) formRef.current?.requestSubmit();
+            handleSubmit();
           }
         }}
         onInput={(e) => {
-          // 자동 높이 조절
+          // textarea 높이 자동 조절
           const el = e.currentTarget;
           el.style.height = "auto";
           el.style.height = `${el.scrollHeight}px`;
@@ -55,18 +64,13 @@ export function InputBar({ sessionId, isStreaming, onStream }: InputBarProps) {
       />
 
       <Button
-        type="submit"
+        type="button"
+        onClick={handleSubmit}
         disabled={disabled}
         className="shrink-0 bg-indigo-500 hover:bg-indigo-600 text-white h-[44px] px-5"
       >
-        {pending || isStreaming ? "전송 중..." : "전송"}
+        {isLoading ? "전송 중..." : "전송"}
       </Button>
-
-      {state.error && (
-        <p role="alert" className="absolute bottom-16 left-4 text-xs text-rose-500">
-          {state.error}
-        </p>
-      )}
-    </form>
+    </div>
   );
 }

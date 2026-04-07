@@ -1,183 +1,123 @@
-# Miri — 구현 TODO
+# study-chatbot-ai — 구현 현황 & TODO
 
-> 기술 스택: Next.js 15 (App Router) · Hono · Anthropic SDK · MongoDB + Mongoose · Tailwind CSS v4 · shadcn/ui  
-> 배포: Google Cloud Run (asia-northeast3)
-
----
-
-## Phase 1. 프로젝트 초기 세팅
-
-### 1-1. Next.js 프로젝트 생성
-
-- [x] `npx create-next-app@latest` 실행 (Next.js 16.2.2, React 19.2.4)
-  - ✅ TypeScript
-  - ✅ Tailwind CSS v4
-  - ✅ App Router
-  - ✅ `src/` 디렉토리 사용
-
-### 1-2. 디렉터리 구조 생성
-
-```
-src/
-├── app/
-│   ├── actions.ts              ← Server Actions ('use server')
-│   ├── api/
-│   │   └── [[...route]]/       ← Hono 진입점
-│   ├── layout.tsx
-│   └── page.tsx
-├── components/
-│   ├── character/
-│   ├── chat/
-│   ├── layout/
-│   └── ui/                     ← shadcn/ui 자동 생성
-├── lib/
-│   ├── db/
-│   │   ├── client.ts
-│   │   └── models/
-│   ├── hono.ts
-│   └── claude.ts
-└── types/
-    └── index.ts                ← 공통 타입 정의
-```
-
-- [x] `src/components/character/` 폴더 생성
-- [x] `src/components/chat/` 폴더 생성
-- [x] `src/components/layout/` 폴더 생성
-- [x] `src/lib/db/models/` 폴더 생성
-- [x] `src/types/` 폴더 생성
-
-### 1-3. 패키지 설치
-
-**Runtime dependencies**
-- [x] `hono`, `@anthropic-ai/sdk`, `mongoose`, `uuid`, `react-markdown`, `remark-gfm`, `rehype-highlight`
-
-**UI dependencies**
-- [x] `shadcn/ui` 초기화 + `button`, `textarea`, `scroll-area` 컴포넌트 추가
-
-**Dev dependencies**
-- [x] `@types/uuid`
-
-### 1-4. 환경변수 설정
-
-- [x] `.env.local` 파일 생성
-- [x] `.env.example` 파일 생성 (값은 비워두고 키만 명시)
-- [x] `.gitignore` 에 `.env*` 포함 확인
-
-### 1-5. Next.js 설정
-
-- [x] `next.config.ts` 에 `output: 'standalone'` 추가
+> **기술 스택 (실제 구현)**: Next.js 16.2.2 (App Router) · Gemini API (`@google/generative-ai`) · Tailwind CSS v4 · react-markdown  
+> **배포**: Google Cloud Run (asia-northeast3) · 프로젝트 ID: `study-chatbot-ai-492606`
 
 ---
 
-## Phase 2. DB 레이어 (MongoDB + Mongoose)
+## 구현 완료 ✅
 
-- [x] `src/lib/db/client.ts` — MongoDB 싱글턴 연결
-  - `global.mongoose` 캐싱으로 dev hot-reload 중복 연결 방지
-- [x] `src/lib/db/models/conversation.ts` — Mongoose 스키마
-  - 필드: `sessionId`, `messages[]` (`role`, `content`, `createdAt`), `createdAt`, `updatedAt`
-  - TTL 인덱스: `{ updatedAt: 1 }, { expireAfterSeconds: 86400 }` (24시간)
-  - `updatedAt` 은 메시지 저장 시마다 수동 업데이트
+### 백엔드
 
----
+- [x] `src/app/api/chat/route.ts` — POST /api/chat (Next.js Route Handler)
+  - 빈 메시지 서버 차단
+  - 최근 `MAX_HISTORY`개 대화만 전송 (비용 절감)
+  - study-todo-app 할 일 목록 fetch 후 컨텍스트로 전달 (`TODO_APP_URL` 미설정 시 건너뜀)
+  - 에러 발생 시 자동 재시도 없음
+  - 콘솔에는 상세 에러, 화면에는 안내 문구만 노출
+- [x] `src/lib/gemini.ts` — Gemini API 호출 로직
+  - `GEMINI_API_KEY` 없으면 **mock mode** 자동 전환 (API 호출 0회)
+  - `callAI(history, userMessage)` 시그니처 유지 → 다른 AI로 교체 시 이 파일만 수정
+- [x] `src/lib/constants.ts` — 모델명·제한값·시스템프롬프트 상수 분리
+  - `GEMINI_MODEL`, `MAX_HISTORY`, `MAX_OUTPUT_TOKENS`, `TEMPERATURE`, `SYSTEM_PROMPT`
 
-## Phase 3. Server Action 정의
+### 프론트엔드
 
-> **왜 Server Action과 SSE를 분리하는가?**  
-> Next.js Server Action은 폼 제출 후 단일 응답을 반환합니다. SSE 스트리밍은 지원하지 않으므로,  
-> **입력 검증·에러 처리는 Server Action**, **AI 응답 스트리밍은 Hono SSE 엔드포인트**가 담당합니다.
+- [x] `src/components/chat/ChatWindow.tsx` — 대화 state 관리, fetch 호출
+  - 페이지 진입 시 자동 API 호출 없음
+  - 에러 시 자동 재시도 없음
+- [x] `src/components/chat/InputBar.tsx` — 메시지 입력창
+  - 빈 메시지 전송 불가 (버튼 disabled)
+  - 로딩 중 버튼 비활성화 (중복 전송 방지)
+  - Enter = 전송, Shift+Enter = 줄바꿈
+- [x] `src/components/chat/MessageBubble.tsx` — 말풍선 (react-markdown)
+- [x] `src/components/character/BlobCharacter.tsx` — CSS-only 캐릭터
+- [x] `src/components/layout/ChatLayout.tsx`, `Sidebar.tsx`
 
-- [x] `src/app/actions.ts` — Server Action 파일 (`'use server'`)
-  - `submitChat(prevState, formData)` — sessionId·message 검증 후 값 반환
+### 설정
 
----
-
-## Phase 4. 공통 타입 정의
-
-- [x] `src/types/index.ts`
-  - `Role`, `Message`, `ChatRequest`, `CharacterState` 타입
-
----
-
-## Phase 5. 서버 레이어 (Hono + Anthropic SDK)
-
-### 5-1. Claude SDK 래퍼
-
-- [x] `src/lib/claude.ts`
-  - Anthropic 클라이언트 초기화
-  - 메시지 배열 구성: 시스템 프롬프트 + DB에서 불러온 최근 N턴
-  - `client.messages.stream()` 호출, delta async generator 반환
-
-### 5-2. Hono 라우터
-
-- [x] `src/lib/hono.ts`
-  - `GET /api/session/new` — UUID v4 발급
-  - `POST /api/chat` — 검증 → MongoDB 로드 → Claude 스트림 → SSE → DB 저장
-  - `GET /api/health` — DB 연결 상태 확인
-
-### 5-3. Route Handler 연결
-
-- [x] `src/app/api/[[...route]]/route.ts` — Hono를 Next.js에 연결
+- [x] `src/types/index.ts` — 공통 타입
+- [x] `src/app/globals.css` — Miri 컬러, `@keyframes float`, prose 스타일
+- [x] `.env.local`, `.env.example` 작성
+- [x] `next.config.ts` — `output: 'standalone'` 활성화
+- [x] TypeScript 타입 체크 통과 (`npx tsc --noEmit`)
+- [x] 프로덕션 빌드 통과 (`npm run build`)
 
 ---
 
-## Phase 6. 프론트엔드 컴포넌트
+## 과금 원칙 체크 ✅
 
-### 6-1. BlobCharacter (캐릭터)
-
-- [x] `src/components/character/BlobCharacter.tsx`
-  - CSS-only 구현 (gradient sphere, float 애니메이션)
-  - `state: 'idle' | 'thinking' | 'error'` 별 눈 표현
-
-### 6-2. 채팅 컴포넌트
-
-- [x] `src/components/chat/MessageBubble.tsx`
-  - user/assistant 말풍선, react-markdown + remark-gfm + rehype-highlight
-- [x] `src/components/chat/InputBar.tsx`
-  - `useActionState` 패턴 (React 19 공식), pending/error 처리
-  - Enter 전송, Shift+Enter 줄바꿈, 자동 높이 조절
-- [x] `src/components/chat/ChatWindow.tsx`
-  - 세션 발급, SSE 스트리밍 수신, 자동 스크롤, BlobCharacter 연동
-
-### 6-3. 레이아웃 컴포넌트
-
-- [x] `src/components/layout/Sidebar.tsx` — 240px 사이드바, 모바일 숨김
-- [x] `src/components/layout/ChatLayout.tsx` — Sidebar + ChatWindow 조합
+| 원칙 | 위치 | 상태 |
+|------|------|------|
+| 페이지 진입 자동 호출 금지 | `ChatWindow.tsx` useEffect (scroll only) | ✅ |
+| 전송 버튼 클릭 시 1회만 호출 | `handleSend` isLoading guard | ✅ |
+| 빈 메시지 차단 | `InputBar` disabled + `route.ts` | ✅ |
+| 중복 전송 방지 | `isLoading` + 버튼 disabled | ✅ |
+| 에러 시 자동 재시도 없음 | catch → UI만 복구, refetch 없음 | ✅ |
+| 최근 N개 대화만 전송 | `route.ts` `history.slice(-MAX_HISTORY)` | ✅ |
+| 응답 길이 제한 | `MAX_OUTPUT_TOKENS = 256` | ✅ |
+| API 키 없으면 mock | `gemini.ts` `isMockMode()` | ✅ |
 
 ---
 
-## Phase 7. 페이지 & 전역 스타일
+## 배포 (Google Cloud Run)
 
-- [x] `src/app/layout.tsx` — 메타데이터(한국어), 폰트 설정
-- [x] `src/app/page.tsx` — `<ChatLayout />` 렌더링
-- [x] `src/app/globals.css` — Miri 컬러 팔레트, prose 스타일
+### Phase 1. 배포 파일 준비
+
+- [x] `Dockerfile` 작성 (Next.js standalone)
+- [x] `.dockerignore` 작성
+- [x] `next.config.ts` `output: 'standalone'` 활성화
+
+### Phase 2. GCP 리소스 세팅
+
+- [ ] GCP Secret Manager에 `GEMINI_API_KEY` 등록
+  ```
+  gcloud secrets create GEMINI_API_KEY --project study-chatbot-ai-492606
+  echo -n "실제키" | gcloud secrets versions add GEMINI_API_KEY --data-file=- --project study-chatbot-ai-492606
+  ```
+- [ ] Artifact Registry 저장소 생성 (없는 경우)
+  ```
+  gcloud artifacts repositories create study-chatbot-ai \
+    --repository-format=docker \
+    --location=asia-northeast3 \
+    --project study-chatbot-ai-492606
+  ```
+
+### Phase 3. 이미지 빌드 & 배포
+
+- [ ] Docker 이미지 빌드 & 푸시
+  ```
+  docker build -t asia-northeast3-docker.pkg.dev/study-chatbot-ai-492606/study-chatbot-ai/app:latest .
+  docker push asia-northeast3-docker.pkg.dev/study-chatbot-ai-492606/study-chatbot-ai/app:latest
+  ```
+- [ ] Cloud Run 배포
+  ```
+  gcloud run deploy study-chatbot-ai \
+    --image asia-northeast3-docker.pkg.dev/study-chatbot-ai-492606/study-chatbot-ai/app:latest \
+    --region asia-northeast3 \
+    --allow-unauthenticated \
+    --min-instances 0 \
+    --max-instances 2 \
+    --memory 512Mi \
+    --set-secrets GEMINI_API_KEY=GEMINI_API_KEY:latest \
+    --project study-chatbot-ai-492606
+  ```
+
+### Phase 4. (선택) todo 앱 연동
+
+- [ ] study-todo-app도 Cloud Run에 배포 후 `TODO_APP_URL` 환경변수 추가
+  ```
+  gcloud run services update study-chatbot-ai \
+    --set-env-vars TODO_APP_URL=https://todo앱URL \
+    --region asia-northeast3 \
+    --project study-chatbot-ai-492606
+  ```
 
 ---
 
-## Phase 8. 검증
+## 나중에 고려할 것 (현재 미구현, 기능상 문제 없음)
 
-- [x] TypeScript 타입 체크: `npx tsc --noEmit` — 에러 없음
-- [x] 빌드 확인: `npm run build` — 성공
-- [ ] 로컬 실행 후 전체 흐름 수동 테스트 (`.env.local` 실제 값 입력 후)
-  1. 첫 방문 → sessionId 발급 확인
-  2. 메시지 전송 → SSE 스트리밍 수신 확인
-  3. MongoDB에서 `conversations` 컬렉션 저장 확인
-  4. `GET /api/health` 응답 확인
-
----
-
-## Phase 9. 배포 (Google Cloud Run)
-
-- [ ] `Dockerfile` 작성 (Next.js standalone 기반)
-- [ ] `.dockerignore` 작성
-- [ ] GCP Secret Manager에 시크릿 4개 등록
-- [ ] Docker 이미지 빌드 & Artifact Registry 푸시
-- [ ] Cloud Run 배포 (asia-northeast3, 512Mi, min 0 / max 2)
-- [ ] MongoDB Atlas IP allowlist 설정
-
----
-
-## 진행 순서 요약
-
-```
-[1. 세팅✅] → [2. DB✅] → [3. Action✅] → [4. 타입✅] → [5. API✅] → [6. UI✅] → [7. 페이지✅] → [8. 검증✅] → [9. 배포]
-```
+- [ ] SSE 스트리밍 (현재: 일반 JSON 응답 → 추후 필요시 전환)
+- [ ] 세션 영속성 (현재: 새로고침 시 초기화 → 추후 MongoDB 추가 가능)
+- [ ] 다크 모드
+- [ ] 대화 내보내기

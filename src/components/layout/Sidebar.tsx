@@ -9,7 +9,7 @@ export function Sidebar() {
         <p className="text-xs text-gray-400 mt-1">AI 학습 도우미</p>
       </div>
       <div className="mt-auto text-xs text-gray-300 text-center leading-relaxed">
-        세션은 마지막 대화 후<br />24시간 뒤 자동 삭제됩니다.
+        대화는 새로고침 시<br />초기화됩니다.
       </div>
     </aside>
   );
