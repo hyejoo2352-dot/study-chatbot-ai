@@ -11,7 +11,7 @@ interface InputBarProps {
   showChips?: boolean;
 }
 
-export function InputBar({ isLoading, onSend, value, onChange }: InputBarProps) {
+export function InputBar({ isLoading, onSend, value, onChange, showChips }: InputBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const canSend = !isLoading && value.trim().length > 0;
@@ -80,6 +80,23 @@ export function InputBar({ isLoading, onSend, value, onChange }: InputBarProps) 
           )}
         </button>
       </div>
+
+      {/* 제안 칩 */}
+      {showChips && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {INPUT_CHIPS.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => onSend(chip)}
+              disabled={isLoading}
+              className="text-xs px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 도움말 텍스트 */}
       <p className="text-[11px] text-gray-400 mt-2 px-1">
