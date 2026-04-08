@@ -1,0 +1,8 @@
+﻿gcloud.cmd : ERROR: (gcloud.builds.log) NOT_FOUND: Requested entity was not found. This command is authenticated as hye
+joo2352@gmail.com which is the active account specified by the [core/account] property.
+At D:\projects\study-chatbot-ai\_get_build_log.ps1:11 char:1
++ & $gcloud builds log $buildId --project $project 2>&1 | Out-File "D:\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ERROR: (gcloud....ount] property.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
