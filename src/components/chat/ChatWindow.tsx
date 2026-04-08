@@ -208,6 +208,7 @@ export function ChatWindow() {
         onSend={handleSend}
         value={inputValue}
         onChange={setInputValue}
+        showChips={isEmpty}
       />
     </div>
   );
