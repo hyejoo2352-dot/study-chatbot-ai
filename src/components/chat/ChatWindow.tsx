@@ -7,12 +7,37 @@ import { InputBar } from "./InputBar";
 import { BlobCharacter } from "@/components/character/BlobCharacter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// ── 첫 화면 제안 칩 ──────────────────────────────────────────
-const INITIAL_SUGGESTIONS = [
-  { emoji: "☀️", label: "오늘 할 일 추천해줘", sub: "오늘 하루 계획 세우기" },
-  { emoji: "📚", label: "공부 계획 만들어줘", sub: "효율적인 학습 루틴" },
-  { emoji: "🎯", label: "우선순위 정리해줘", sub: "중요한 것부터 처리" },
-  { emoji: "🔁", label: "루틴 만들어줘", sub: "반복 가능한 습관 설계" },
+// ── TODO 미리보기 카드 (첫 화면 장식용) ─────────────────────
+const TODO_PREVIEW = [
+  {
+    icon: "📌",
+    label: "디자인 시스템 정리하기",
+    time: "오늘 오전",
+    status: "시작 전",
+    statusClass: "bg-gray-100 text-gray-500",
+  },
+  {
+    icon: "📧",
+    label: "팀 주간 보고서 작성",
+    time: "오늘 오후",
+    status: "진행 중",
+    statusClass: "bg-blue-50 text-blue-500",
+  },
+  {
+    icon: "📚",
+    label: "Next.js 문서 읽기",
+    time: "오늘 저녁",
+    status: "예정",
+    statusClass: "bg-indigo-50 text-indigo-500",
+  },
+];
+
+// ── 입력창 아래 suggestion chips ────────────────────────────
+export const INPUT_CHIPS = [
+  "오늘 할 일 추천해줘",
+  "공부 계획 만들어줘",
+  "우선순위 정리해줘",
+  "루틴 만들어줘",
 ];
 
 // ── AI 응답 후 후속 제안 칩 ───────────────────────────────────
@@ -85,41 +110,52 @@ export function ChatWindow() {
       {/* ── 메시지 영역 ────────────────────────────────────────── */}
       <ScrollArea className="flex-1 px-4 md:px-8 py-6">
 
-        {/* 빈 화면 → 온보딩 히어로 */}
+        {/* 빈 화면 → 첫 화면 대시보드 */}
         {isEmpty && (
-          <div className="flex flex-col items-center pt-6 pb-4 text-center">
-            {/* 캐릭터 */}
-            <div className="mb-4 animate-float">
-              <BlobCharacter state="idle" size={80} />
+          <div className="flex flex-col gap-6 w-full max-w-xl mx-auto pt-8 pb-4">
+
+            {/* Hero — 수평 레이아웃 */}
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 animate-float">
+                <BlobCharacter state="idle" size={52} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 leading-snug">
+                  안녕하세요, 저는 <span className="text-indigo-500">Miri</span>예요
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  오늘 할 일을 함께 정리해볼까요?
+                </p>
+              </div>
             </div>
 
-            {/* 인사 */}
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              안녕하세요! 저는 <span className="text-indigo-500">Miri</span>예요 👋
-            </h2>
-            <p className="text-sm text-gray-500 max-w-md leading-relaxed mb-8">
-              할 일 정리, 공부 계획, 루틴 만들기까지 —<br />
-              오늘 무엇부터 시작할까요?
-            </p>
-
-            {/* 제안 카드 2×2 그리드 */}
-            <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
-              {INITIAL_SUGGESTIONS.map((s) => (
-                <button
-                  key={s.label}
-                  onClick={() => handleChipClick(s.label)}
-                  className="group flex flex-col items-start gap-1.5 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-indigo-50 hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm transition-all duration-150 text-left"
+            {/* TODO 미리보기 카드 3개 */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-gray-400 px-1">오늘의 할 일</p>
+              {TODO_PREVIEW.map((todo) => (
+                <div
+                  key={todo.label}
+                  className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm"
                 >
-                  <span className="text-2xl">{s.emoji}</span>
-                  <span className="text-sm font-semibold text-gray-800 group-hover:text-indigo-700 leading-snug">
-                    {s.label}
+                  <span className="text-xl shrink-0">{todo.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{todo.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{todo.time}</p>
+                  </div>
+                  <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${todo.statusClass}`}>
+                    {todo.status}
                   </span>
-                  <span className="text-xs text-gray-400 group-hover:text-indigo-400">
-                    {s.sub}
-                  </span>
-                </button>
+                </div>
               ))}
             </div>
+
+            {/* CTA 버튼 */}
+            <button
+              onClick={() => handleSend("오늘 할 일 분석하고 우선순위 정리해줘")}
+              className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-600 active:scale-[0.98] text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all duration-150"
+            >
+              Miri와 오늘 하루 시작하기 →
+            </button>
 
           </div>
         )}

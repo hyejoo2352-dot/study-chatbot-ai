@@ -1,12 +1,14 @@
 "use client";
 
 import { type Dispatch, type SetStateAction, useRef } from "react";
+import { INPUT_CHIPS } from "./ChatWindow";
 
 interface InputBarProps {
   isLoading: boolean;
   onSend: (message: string) => void;
   value: string;
   onChange: Dispatch<SetStateAction<string>>;
+  showChips?: boolean;
 }
 
 export function InputBar({ isLoading, onSend, value, onChange }: InputBarProps) {
